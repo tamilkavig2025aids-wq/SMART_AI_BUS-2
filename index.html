@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Language" content="en">
+  <meta name="google" content="notranslate">
+  <title>Smart Bus Automation Tracking System | Coimbatore TNSTC Real-Time Google Maps & ETM Dispatch</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet CSS & JS -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Application Custom Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ================= MASTER TOP NAVIGATION HEADER ================= -->
+  <header class="master-header">
+    <div class="header-container">
+      <div class="brand-section">
+        <div class="brand-logo-icon">🚌</div>
+        <div>
+          <h1 class="brand-title">Smart Bus Automation Tracking System</h1>
+          <p class="brand-tagline">Coimbatore Google Maps Environment • TNSTC Conductor ETM • Live GPS Auto-Offload</p>
+        </div>
+      </div>
+
+      <!-- Dedicated Screen Navigation Switcher -->
+      <nav class="view-tabs-nav">
+        <button class="nav-tab-btn active" data-tab="fleet" id="tabBtnFleet">
+          <span>🌐</span>
+          <span>Operational Fleet</span>
+          <span class="tab-badge">10 Buses</span>
+        </button>
+
+        <button class="nav-tab-btn" data-tab="web" id="tabBtnWeb">
+          <span>💻</span>
+          <span>Passenger Web Dashboard</span>
+          <span class="tab-badge">AI Portal</span>
+        </button>
+
+        <button class="nav-tab-btn" data-tab="mobile" id="tabBtnMobile">
+          <span>📱</span>
+          <span>Mobile App UI/UX</span>
+          <span class="tab-badge">Phone View</span>
+        </button>
+      </nav>
+
+      <!-- Live GPS Telemetry Status -->
+      <div class="header-telemetry-pill">
+        <span class="pulse-dot-green"></span>
+        <span>Coimbatore City Telemetry: <strong>ONLINE</strong></span>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ================= SCREEN 1: OPERATIONAL FLEET SIMULATION ================= -->
+  <section class="view-section" id="viewFleetSection">
+    <div class="fleet-view-container">
+      
+      <!-- Subbar with live fleet metrics & simulation speed controls -->
+      <div class="fleet-subbar">
+        <div class="fleet-stats-strip">
+          <div class="stat-item">
+            <span>Active Fleet:</span>
+            <span class="stat-val text-blue-600" id="statActiveBuses">10</span>
+          </div>
+          <div class="stat-item">
+            <span>Total Passengers Aboard:</span>
+            <span class="stat-val text-emerald-600" id="statTotalPassengers">186</span>
+          </div>
+          <div class="stat-item">
+            <span>Average Fleet Occupancy:</span>
+            <span class="stat-val text-amber-600" id="statAvgOccupancy">44%</span>
+          </div>
+          <div class="stat-item">
+            <span>ETM Telemetry:</span>
+            <span class="stat-val text-emerald-600">● 10 Handhelds Synced</span>
+          </div>
+        </div>
+
+        <div class="fleet-controls-strip">
+          <button class="ctrl-btn" id="btnFleetPause">⏸️ Pause Simulation</button>
+          <div class="flex items-center gap-1 text-xs text-slate-500 font-semibold">
+            <span>Speed:</span>
+            <select class="ctrl-select" id="fleetSpeedSelect">
+              <option value="1.0">1.0x (Normal)</option>
+              <option value="2.0">2.0x (Fast)</option>
+              <option value="4.0">4.0x (Ultra)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Fleet Booking Chips Bar (Book Ticket for Any Bus with 1 Click) -->
+      <div id="fleetQuickChipsBar"></div>
+
+      <!-- Single Full-City Google Maps Environment (All 10 Buses Run Concurrently) -->
+      <div id="fleetMap"></div>
+
+      <!-- Floating Bus Inspector Card (Opens on Bus Click) -->
+      <div class="fleet-inspector-drawer" id="fleetBusInspector">
+        <!-- Rendered dynamically by operational-map.js -->
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ================= SCREEN 2: PASSENGER WEB UI/UX DASHBOARD ================= -->
+  <section class="view-section hidden" id="viewWebSection">
+    <div class="web-dashboard-container">
+
+      <!-- Web Hero Banner -->
+      <div class="web-dashboard-hero">
+        <span class="web-hero-badge">Smart Commuter Web Portal</span>
+        <h2 class="text-2xl font-black mb-1">Coimbatore Smart AI Bus Journey Planner</h2>
+        <p class="text-sm text-slate-300 max-w-2xl">
+          Powered by real-time TNSTC conductor ETM ticketing telemetry. Detects oncoming buses heading to your location, 
+          forecasts seat availability, and notifies you within 5 minutes of arrival.
+        </p>
+      </div>
+
+      <!-- Step 1: User Details & Stop Selection Form -->
+      <div class="web-dashboard-card mb-6" id="webUserFormSection">
+        <div class="border-b border-slate-100 pb-3 mb-4">
+          <h3 class="text-lg font-bold text-slate-800">1. Enter Your Commuter Details & Trip Stops</h3>
+          <p class="text-xs text-slate-500">Provide your information so SmartBus AI can locate oncoming buses heading your direction.</p>
+        </div>
+
+        <form id="webTripPlannerForm">
+          <div class="web-form-grid">
+            <div class="form-group">
+              <label class="form-label" for="webUserName">Passenger Full Name</label>
+              <input type="text" id="webUserName" class="form-input" placeholder="e.g. Kavitha Sundaram" value="Kavitha Sundaram" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="webUserPhone">Contact Mobile / Notification SMS</label>
+              <input type="tel" id="webUserPhone" class="form-input" placeholder="e.g. +91 98421 67890" value="+91 98421 67890" required>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="webPickupStop">Where Are You Currently Waiting? (Boarding Stop)</label>
+              <select id="webPickupStop" class="form-select" required></select>
+              <button type="button" class="btn-detect-gps" id="webBtnAutoGps">
+                📍 Detect My GPS Location
+              </button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="webDestStop">Where Is Your Destination? (Drop-off Stop)</label>
+              <select id="webDestStop" class="form-select" required></select>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-form-search">
+            <span>🚀</span>
+            <span>Find Nearest & AI-Recommended Buses</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Step 2: AI Recommendations & 5-Minute Arrival Alert Banner -->
+      <div class="hidden" id="webResultsSection">
+        
+        <!-- 5-Minute Arrival Alert Box -->
+        <div id="web5MinAlertBanner" class="hidden"></div>
+
+        <div class="web-dashboard-card mb-6">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4 flex-wrap gap-2">
+            <div>
+              <h3 class="text-lg font-bold text-slate-800">2. Real-Time AI Bus Recommendations</h3>
+              <p class="text-xs text-slate-500" id="webUserGreeting"></p>
+            </div>
+            <button class="text-xs text-blue-600 font-bold hover:underline" id="webBtnEditDetails">
+              ✏️ Modify Trip Details
+            </button>
+          </div>
+
+          <!-- Dynamic List of Arriving Buses -->
+          <div class="web-bus-list" id="webBusList"></div>
+        </div>
+
+      </div>
+
+      <!-- Step 3: Dedicated Single-Bus Web Tracking View (Does NOT redirect to operational map!) -->
+      <div class="hidden" id="webTrackingSection">
+        <div class="web-dashboard-card">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+            <div>
+              <span class="text-2xs font-bold text-blue-600 uppercase tracking-wider">Dedicated Single Bus Radar</span>
+              <h3 class="text-xl font-black text-slate-900">Live Bus GPS Tracking (Google Maps)</h3>
+            </div>
+            <button class="ctrl-btn bg-blue-50 text-blue-700 font-bold" id="webBtnBackToResults">
+              ← Back to Recommended Buses
+            </button>
+          </div>
+
+          <!-- Dedicated Map Tracking ONLY this selected bus on Google Maps -->
+          <div class="web-tracking-container">
+            <div id="webSingleBusMap"></div>
+            <div id="webTrackingInfoPanel"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ================= SCREEN 3: MOBILE APP UI/UX DESIGN ================= -->
+  <section class="view-section hidden" id="viewMobileSection">
+    <div class="mobile-view-container">
+      
+      <!-- Modern Smartphone Frame (iPhone 15 / Android Mockup) -->
+      <div class="phone-mockup-frame">
+        
+        <!-- Status Bar & Dynamic Island -->
+        <div class="phone-island-bar">
+          <span id="phoneClockTime">9:41</span>
+          <div class="phone-dynamic-island"></div>
+          <span>5G 🔋</span>
+        </div>
+
+        <!-- Phone Viewport -->
+        <div class="phone-screen-viewport">
+
+          <!-- Mobile App Screen A: Commuter Feed & Oncoming Buses -->
+          <div id="mobileFeedView" class="flex flex-col flex-1">
+            
+            <div class="phone-app-header">
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🚌</span>
+                <span class="font-extrabold text-sm text-slate-900">SmartBus</span>
+              </div>
+              <div class="phone-location-chip">
+                <span>📍</span>
+                <span id="mobileUserLocationText">Gandhipuram Central</span>
+              </div>
+            </div>
+
+            <!-- Stop Location Picker for Commuter -->
+            <div class="px-4 py-2 bg-slate-100 border-b border-slate-200">
+              <label class="text-3xs font-bold text-slate-500 uppercase block mb-1">Simulate My Commuter Stop:</label>
+              <select id="mobileStopSelector" class="w-full text-xs p-1.5 rounded border border-slate-300 bg-white font-medium"></select>
+            </div>
+
+            <!-- Mobile 5-Minute Arrival Alert Banner -->
+            <div id="mobilePushAlert" class="hidden"></div>
+
+            <div class="mobile-feed-body flex-1">
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wide">Nearby Oncoming Buses</h3>
+                <span class="text-3xs text-emerald-600 font-bold">● ETM Synced</span>
+              </div>
+              <p class="text-3xs text-slate-500 mb-2">Sorted by AI arrival calculation & seat availability.</p>
+
+              <!-- Scrollable Bus List -->
+              <div class="mobile-bus-list" id="mobileBusList"></div>
+            </div>
+
+          </div>
+
+          <!-- Mobile App Screen B: Dedicated Single-Bus Mobile Tracking Screen -->
+          <div id="mobileTrackingView" class="hidden mobile-tracking-container">
+            
+            <div class="phone-app-header">
+              <button class="text-xs font-bold text-blue-600 flex items-center gap-1" id="mobileBtnBackToFeed">
+                <span>←</span> Buses
+              </button>
+              <span class="font-bold text-xs text-slate-800">Live Trip Radar</span>
+              <span class="text-2xs text-emerald-600 font-bold">● LIVE</span>
+            </div>
+
+            <!-- Mini Map Inside Mobile Phone Screen (Google Maps) -->
+            <div id="mobileTrackingMap"></div>
+
+            <!-- Bottom Slide-up Telemetry Sheet Inside Phone -->
+            <div class="mobile-tracking-sheet" id="mobileTrackingSheet"></div>
+
+          </div>
+
+        </div>
+
+        <!-- Phone Home Indicator Bar -->
+        <div class="phone-home-indicator-bar">
+          <div class="home-indicator-line"></div>
+        </div>
+
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ================= ETM HARDWARE SIMULATION MODAL ================= -->
+  <!-- Matches TNSTC-CBE ETM-500 device hardware layout -->
+  <!-- Fixed sticky header ensures close button '✕' NEVER scrolls or cuts off! -->
+  <div class="modal-overlay" id="etmModal">
+    <div class="etm-modal-dialog">
+      
+      <!-- STICKY TOP HEADER: Always in view, unmistakable red close button -->
+      <div class="modal-sticky-header">
+        <div class="modal-header-title">
+          <span>📟</span>
+          <span>TNSTC-CBE ETM-500 Handheld Terminal</span>
+        </div>
+        <button class="modal-btn-close-sticky" id="etmCloseBtn" title="Close ETM (Escape)">
+          <span>✕</span>
+          <span>Close ETM</span>
+        </button>
+      </div>
+
+      <!-- Scrollable Device Body -->
+      <div class="etm-modal-scrollable-body">
+        
+        <!-- ETM Casing Enclosure -->
+        <div class="etm-casing">
+          
+          <!-- Thermal Paper Receipt Container (Slides up on print) -->
+          <div class="etm-printer-slot"></div>
+          <div class="etm-receipt-container" id="etmReceiptContainer">
+            <div class="receipt-paper" id="etmReceiptPaper"></div>
+          </div>
+
+          <!-- LCD Green Dot Matrix Screen (Matches Image 2) -->
+          <div class="etm-lcd-screen">
+            <div class="lcd-top-bar">
+              <span>TNSTC-CBE ETM-500</span>
+              <span class="flex items-center gap-1">
+                <span class="pulse-dot-green" style="width:6px;height:6px;"></span>
+                <span>GPS-SYNC</span>
+              </span>
+              <span id="etmLcdTime">10:25 am</span>
+            </div>
+
+            <div class="lcd-grid">
+              <span class="lcd-label">BUS:</span>
+              <span class="lcd-val" id="etmLcdBus">TN-38 #102 [11C]</span>
+
+              <span class="lcd-label">COND:</span>
+              <span class="lcd-val" id="etmLcdCond">S. Priya</span>
+
+              <span class="lcd-label">FROM:</span>
+              <span class="lcd-val" id="etmLcdFrom">Ukkadam Terminus</span>
+
+              <span class="lcd-label">TO DEST:</span>
+              <span class="lcd-val" id="etmLcdDest">Gandhipuram Central</span>
+
+              <span class="lcd-label">PASSENGERS:</span>
+              <span class="lcd-val" id="etmLcdPassengers">1 (FULL)</span>
+
+              <span class="lcd-label">FARE:</span>
+              <span class="lcd-val" id="etmLcdFare">Rs. 15.00</span>
+
+              <span class="lcd-label">CAPACITY:</span>
+              <span class="lcd-val" id="etmLcdCapacity">15/42 SEATS</span>
+            </div>
+
+            <div class="lcd-action-hint" id="etmLcdActionHint">PRESS [PRINT / ISSUE]</div>
+          </div>
+
+          <!-- Fast-Action Destination Picker directly on device -->
+          <div class="etm-fast-dest-box">
+            <label class="text-2xs font-bold text-slate-300 block mb-1">🚏 Select Ticket Destination Stop:</label>
+            <select id="etmDestDropdown" class="etm-dest-select"></select>
+          </div>
+
+          <!-- Prominent Direct Issue Button -->
+          <button class="etm-btn-direct-issue" id="etmDirectIssueBtn">
+            <span>🎫</span>
+            <span>ISSUE TICKET & PRINT (PRESS HERE)</span>
+          </button>
+
+          <!-- Telemetry & Battery Indicator Bar -->
+          <div class="etm-status-indicators">
+            <span class="flex items-center gap-1 text-emerald-400">
+              <span class="pulse-dot-green" style="width:6px;height:6px;"></span>
+              <span>4G TELEMETRY & GPS</span>
+            </span>
+            <span class="text-emerald-400">🔋 96% CHARGED</span>
+          </div>
+
+          <!-- ETM Keypad Grid (Matches Image 2 Buttons) -->
+          <div class="etm-keypad-grid">
+            <!-- Row 1 -->
+            <button class="etm-key etm-key-dest" data-action="dest">DEST</button>
+            <button class="etm-key" data-action="qty-plus">+ QTY</button>
+            <button class="etm-key" data-action="qty-minus">- QTY</button>
+            <button class="etm-key etm-key-clr" data-action="clr">CLR</button>
+
+            <!-- Row 2 -->
+            <button class="etm-key" data-action="num" data-val="1">1</button>
+            <button class="etm-key" data-action="num" data-val="2">2</button>
+            <button class="etm-key" data-action="num" data-val="3">3</button>
+            <button class="etm-key" data-action="full">FULL</button>
+
+            <!-- Row 3 -->
+            <button class="etm-key" data-action="num" data-val="4">4</button>
+            <button class="etm-key" data-action="num" data-val="5">5</button>
+            <button class="etm-key" data-action="num" data-val="6">6</button>
+            <button class="etm-key" data-action="conc">CONC</button>
+
+            <!-- Row 4 -->
+            <button class="etm-key" data-action="num" data-val="7">7</button>
+            <button class="etm-key" data-action="num" data-val="8">8</button>
+            <button class="etm-key" data-action="num" data-val="9">9</button>
+            <button class="etm-key etm-key-print" data-action="print">PRINT / ISSUE</button>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- STICKY FOOTER: Explicit Return Button -->
+      <div class="modal-sticky-footer">
+        <span class="text-xs text-slate-400">💡 Instant GPS Sync: Adds passenger & auto-offloads at destination</span>
+        <button class="btn-modal-exit" id="etmReturnBtn">← Return to Bus</button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ================= BUS INTERIOR CUTAWAY MODAL ================= -->
+  <div class="modal-overlay" id="interiorModal">
+    <div class="interior-modal-dialog">
+      
+      <div class="modal-sticky-header">
+        <div>
+          <h3 class="modal-header-title" id="interiorBusTitle">Bus Interior Cabin</h3>
+          <p class="text-xs text-slate-400" id="interiorBusSubtitle"></p>
+        </div>
+        <button class="modal-btn-close-sticky" id="interiorCloseBtn">
+          <span>✕</span>
+          <span>Close Cabin View</span>
+        </button>
+      </div>
+
+      <div class="interior-scrollable-body">
+        
+        <!-- Conductor Spotlight Card holding ETM -->
+        <div id="interiorConductorCard"></div>
+
+        <!-- 42-Seat Passenger Cabin Cutaway Grid -->
+        <div id="interiorCabinGrid"></div>
+
+      </div>
+
+      <div class="modal-sticky-footer">
+        <span class="text-xs text-slate-400">💡 Click Conductor's Handheld ETM or button above to open Hardware Simulator</span>
+        <button class="btn-modal-exit" onclick="window.interiorVisualizer.close()">← Return to City Map</button>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ================= GLOBAL TOAST CONTAINER ================= -->
+  <div class="global-toast-container" id="globalToastContainer"></div>
+
+
+  <!-- Application Scripts -->
+  <script src="js/data.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/etm.js"></script>
+  <script src="js/bus-interior.js"></script>
+  <script src="js/operational-map.js"></script>
+  <script src="js/web-dashboard.js"></script>
+  <script src="js/mobile-app.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>
